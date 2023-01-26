@@ -8,7 +8,7 @@ with open(r"../../data/names.txt") as f:
 
 # %%
 """
-Implement bigram statistical model by getting probability distribution via counts
+Implement bigrams statistical model by getting probability distribution via counts
 """
 N = torch.zeros((27,27), dtype=torch.int32)
 

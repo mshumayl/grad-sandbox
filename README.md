@@ -1,0 +1,2 @@
+# grad-sandbox
+This repository is a sandbox for me to learn about gradient-based models. I am following along [Andrej Karpathy's course on implementing neural nets from scratch](https://karpathy.ai/zero-to-hero.html). This repository will include code and exercises from his lectures.
