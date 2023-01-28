@@ -84,3 +84,4 @@ print(f'{log_likelihood=}')
 nll = -log_likelihood #to make more similar to loss function
 print(f'{nll=}')
 print(f'{nll/n}')
+# %%
