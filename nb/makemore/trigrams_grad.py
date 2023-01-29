@@ -52,11 +52,11 @@ W = torch.randn((27*2, 27), generator=g, requires_grad=True) # Keep grads
 
 # %%
 # Gradient optimization
-for epoch in range(100):
+for epoch in range(200):
     
     # Forward pass
     xenc = F.one_hot(xs, num_classes=27).float()    # Cast int to float
-    xenc = xenc.view(-1, 27*2) # Reshape 
+    xenc = xenc.view(-1, 27*2) # Reshape without any new memory alloc
     logits = xenc @ W   # Matmul between encoded input and random weight
                         # Logits are log of 'counts'
     # Softmax
@@ -69,7 +69,7 @@ for epoch in range(100):
     # Calculate loss for the whole matrix at this epoch
     # torch.arange(num) is a vector containing the indices of all xs, equivalent to the number of inputs
     # ys is the indices of the actual second chars
-    loss = -probs[torch.arange(ys.shape[0]), ys].log().mean() + 0.01*(W**2).mean()
+    loss = -probs[torch.arange(ys.shape[0]), ys].log().mean() + 0.01*(W**2).mean() # Regularization
     print(f"{epoch=},{loss.item()=}")
     
     # Backward pass
@@ -78,6 +78,9 @@ for epoch in range(100):
     
     # Update
     W.data += -50 * W.grad # -ve to reduce nll
+    
+# print(f"{epoch=},{loss.item()=}")
+
     
 # %%
 # Sample from the trained model
@@ -96,6 +99,7 @@ for i in range(10):
         p = counts/counts.sum(1, keepdims=True)
 
         ix = torch.multinomial(p, num_samples=1, replacement=True, generator=g).item()
+        iy = torch.multinomial(p, num_samples=1, replacement=True, generator=g).item()
         
         out.append(itos[ix])
         
