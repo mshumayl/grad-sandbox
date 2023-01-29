@@ -7,7 +7,7 @@ import string
 
 # %%
 with open(r"../../data/names.txt") as f:
-    words = f.read().lower().splitlines()
+    words = f.read().splitlines()
 
 # %%
 """
@@ -15,7 +15,7 @@ Implement trigrams model through gradient optimization.
 """
 
 # %%
-chars = ['.'] + list(string.ascii_lowercase) 
+chars = ['.'] + list(string.ascii_letters) 
 chars.extend(sorted(set([f"{x}{y}" for x, y in itertools.product(chars, chars)])))
 
 stoi = {s:i for i, s in enumerate(chars)} # Get integer mapping of chars
@@ -47,16 +47,16 @@ num = xs.nelement() # Number of elements in xs
 #   corresponding to each alphabet combination in the bigram
 
 g = torch.Generator().manual_seed(9876543210)
-W = torch.randn((27*2, 27), generator=g, requires_grad=True) # Keep grads
+W = torch.randn((27*2*2, 27), generator=g, requires_grad=True) # Keep grads
 
 
 # %%
 # Gradient optimization
-for epoch in range(200):
+for epoch in range(500):
     
     # Forward pass
-    xenc = F.one_hot(xs, num_classes=27).float()    # Cast int to float
-    xenc = xenc.view(-1, 27*2) # Reshape without any new memory alloc
+    xenc = F.one_hot(xs, num_classes=27*2).float()    # Cast int to float
+    xenc = xenc.view(-1, 27*2*2) # Reshape without any new memory alloc
     logits = xenc @ W   # Matmul between encoded input and random weight
                         # Logits are log of 'counts'
     # Softmax
@@ -91,8 +91,8 @@ for i in range(10):
     iy = 0
     
     while True:
-        xenc = F.one_hot(torch.tensor([ix, iy]), num_classes=27).float()
-        xenc = xenc.view(-1, 27*2) # Reshape 
+        xenc = F.one_hot(torch.tensor([ix, iy]), num_classes=27*2).float()
+        xenc = xenc.view(-1, 27*2*2) # Reshape 
 
         logits = xenc @ W 
         counts = logits.exp()
