@@ -15,9 +15,8 @@ Implement trigrams model through gradient optimization.
 """
 
 # %%
-charlist = ['.'] + list(string.ascii_lowercase)
-chars = sorted(set([f"{x}{y}" for x, y in itertools.product(charlist, charlist)]))
-chars.extend(charlist)
+chars = ['.'] + list(string.ascii_lowercase) 
+chars.extend(sorted(set([f"{x}{y}" for x, y in itertools.product(chars, chars)])))
 
 stoi = {s:i for i, s in enumerate(chars)} # Get integer mapping of chars
 itos = {i:s for s, i in stoi.items()} # Reverse mapping -- from int to char
@@ -25,14 +24,17 @@ itos = {i:s for s, i in stoi.items()} # Reverse mapping -- from int to char
 # %%
 xs, ys = [], []
 
-for w in words[:5]: 
+for w in words: 
     chs = ['.'] + list(w) + ['.']
     for ch1, ch2, ch3 in zip(chs, chs[1:], chs[2:]): 
-        ixx = stoi[f"{ch1}{ch2}"]
-        ixy = stoi[ch3]
+        ix1 = stoi[ch1]
+        ix2 = stoi[ch2]
+        ix3 = stoi[ch3]
         
-        xs.append(ixx)
-        ys.append(ixy)
+        print(f"{ch1}{ch2}{ch3}")
+        
+        xs.append([ix1,ix2])
+        ys.append(ix3)
         
 xs = torch.tensor(xs)
 ys = torch.tensor(ys)
@@ -44,10 +46,8 @@ num = xs.nelement() # Number of elements in xs
 # Weights need to be a 2D matrix of size (27, 27) 
 #   corresponding to each alphabet combination in the bigram
 
-sz = len(chars)
-
 g = torch.Generator().manual_seed(9876543210)
-W = torch.randn((sz, sz), generator=g, requires_grad=True) # Keep grads
+W = torch.randn((27*2, 27), generator=g, requires_grad=True) # Keep grads
 
 
 # %%
@@ -55,7 +55,8 @@ W = torch.randn((sz, sz), generator=g, requires_grad=True) # Keep grads
 for epoch in range(100):
     
     # Forward pass
-    xenc = F.one_hot(xs, num_classes=sz).float()    # Cast int to float
+    xenc = F.one_hot(xs, num_classes=27).float()    # Cast int to float
+    xenc = xenc.view(-1, 27*2) # Reshape 
     logits = xenc @ W   # Matmul between encoded input and random weight
                         # Logits are log of 'counts'
     # Softmax
@@ -68,7 +69,7 @@ for epoch in range(100):
     # Calculate loss for the whole matrix at this epoch
     # torch.arange(num) is a vector containing the indices of all xs, equivalent to the number of inputs
     # ys is the indices of the actual second chars
-    loss = -probs[torch.arange(num), ys].log().mean() + 0.01*(W**2).mean()
+    loss = -probs[torch.arange(ys.shape[0]), ys].log().mean() + 0.01*(W**2).mean()
     print(f"{epoch=},{loss.item()=}")
     
     # Backward pass
@@ -76,7 +77,7 @@ for epoch in range(100):
     loss.backward()
     
     # Update
-    W.data += -30 * W.grad # -ve to reduce nll
+    W.data += -50 * W.grad # -ve to reduce nll
     
 # %%
 # Sample from the trained model
@@ -84,9 +85,12 @@ for epoch in range(100):
 for i in range(10):
     out = []
     ix = 0
+    iy = 0
     
     while True:
-        xenc = F.one_hot(torch.tensor([ix]), num_classes=sz).float()
+        xenc = F.one_hot(torch.tensor([ix, iy]), num_classes=27).float()
+        xenc = xenc.view(-1, 27*2) # Reshape 
+
         logits = xenc @ W 
         counts = logits.exp()
         p = counts/counts.sum(1, keepdims=True)
@@ -95,9 +99,9 @@ for i in range(10):
         
         out.append(itos[ix])
         
-        if '.' in itos[ix]:
+        if ix == 0:
             break
         
-    print(''.join(out), '\n')
+    print(''.join(out))
 
 # %%

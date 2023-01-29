@@ -22,7 +22,7 @@ itos = {i:s for s, i in stoi.items()} # Reverse mapping -- from int to char
 xs, ys = [], []
 
 b = {}
-for w in words: 
+for w in words[:1000]: 
     chs = ['.'] + list(w) + ['.']
     for ch1, ch2 in zip(chs, chs[1:]): # Shift by one to get second char of bigram
         ix1 = stoi[ch1]
@@ -47,7 +47,7 @@ W = torch.randn((27, 27), generator=g, requires_grad=True) # Keep grads
 
 # %%
 # Gradient optimization
-for epoch in range(100):
+for epoch in range(1):
     
     # Forward pass
     xenc = F.one_hot(xs, num_classes=27).float()    # Cast int to float
