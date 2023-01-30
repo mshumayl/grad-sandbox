@@ -54,33 +54,37 @@ def split_dataset():
     return xtr, ytr, xdev, ydev, xts, yts
 
     
-def init_model(hl_size: int = 200, lookup_size: int = 30):
+def init_model(hl_size: int = 200, lookup_size: int = 10, context_length: int = 3):
     g = torch.Generator().manual_seed(SEED)
-    C = torch.randn((27, 10), generator=g, requires_grad=True)
+    C = torch.randn((27, lookup_size), generator=g, requires_grad=True)
     
-    W1 = torch.randn((lookup_size, hl_size), generator=g, requires_grad=True)  
+    W1 = torch.randn((lookup_size*context_length, hl_size), generator=g, requires_grad=True)  
     b1 = torch.randn(hl_size, generator=g, requires_grad=True)        
     
     W2 = torch.randn((hl_size, 27), generator=g, requires_grad=True)  
     b2 = torch.randn(27, generator=g, requires_grad=True)
     
     model_params = [C, W1, b1, W2, b2]
+    model_hyperparams = [hl_size, lookup_size, context_length]
     
-    return model_params
+    return (model_params, model_hyperparams)
 
 
-def train_model(data: tuple, model_params: list, steps: int = 1, batch_size: int = 32):
+def train_model(data: tuple, model, steps: int = 1, batch_size: int = 32):
     x, y = data
+    
+    model_params, model_hyperparams = model
     C, W1, b1, W2, b2 = model_params
+    hl_size, lookup_size, context_length = model_hyperparams
     
     for i in range(steps):
         # get random batch
-        ix = torch.randint(0, x.shape[0], (batch_size,)) # default batch size 32
+        ix = torch.randint(0, x.shape[0], (batch_size,))
         
         # forward pass
         embs = C[x[ix]] # [32, 3, 2]
-        h = torch.tanh(embs.view(-1, 30) @ W1 + b1) # [32, 100]
-        logits = h @ W2 + b2 # [32, 27]
+        h = torch.tanh(embs.view(-1, lookup_size*context_length) @ W1 + b1)
+        logits = h @ W2 + b2
         loss = F.cross_entropy(logits, y[ix])
         
         # backward pass
@@ -89,7 +93,7 @@ def train_model(data: tuple, model_params: list, steps: int = 1, batch_size: int
         loss.backward()
         
         # update
-        lr = 0.1 if i <100000 else 0.01 # decay
+        lr = 0.1 if i <20000 else 0.01 # decay
         for p in model_params:
             p.data += -lr * p.grad
             
@@ -101,8 +105,10 @@ def train_model(data: tuple, model_params: list, steps: int = 1, batch_size: int
     plt.plot(stepi, lossi)
 
 
-def generate_samples(model_params: list, num_samples: int = 10, block_size: int = 3):
+def generate_samples(model, num_samples: int = 10, block_size: int = 3):
     g = torch.Generator().manual_seed(SEED)
+    
+    model_params, _ = model
     C, W1, b1, W2, b2 = model_params
     
     for _ in range(num_samples):
@@ -127,13 +133,16 @@ def generate_samples(model_params: list, num_samples: int = 10, block_size: int 
         print(''.join(itos[i] for i in out))
             
 
-def validate_model(model_params: list, data: tuple):
+def validate_model(model, data: tuple):
     
+    model_params, model_hyperparams = model
     C, W1, b1, W2, b2 = model_params
+    hl_size, lookup_size, context_length = model_hyperparams
+    
     x, y = data
 
     emb = C[x]
-    h = torch.tanh(emb.view(-1, 30) @ W1 + b1)
+    h = torch.tanh(emb.view(-1, lookup_size*context_length) @ W1 + b1)
     logits = h @ W2 + b2
     loss = F.cross_entropy(logits, y)
     
@@ -145,7 +154,10 @@ build_dataset(words)
 xtr, ytr, xdev, ydev, xts, yts = split_dataset()
 
 # %%
-model = init_model()
+model = init_model(
+    hl_size=500,
+    lookup_size=100,
+)
 lri = []
 lossi = []
 stepi = []
@@ -153,8 +165,8 @@ stepi = []
 #%%
 train_model(
     data=(xtr, ytr),
-    model_params=model, 
-    steps=100000,
+    model=model, 
+    steps=25000,
     batch_size=128
     )
 # %%
@@ -166,6 +178,20 @@ datats = (xts, yts)
 
 validate_model(model, datatr)
 validate_model(model, datadev)
-# validate_model(model, datats)
+validate_model(model, datats)
 
 # %%
+"""
+Outputs:
+
+farristepha.
+jene.
+sten.
+malah.
+kyn.
+jeffie.
+kahlanita.
+namdira.
+ged.
+amaud.
+"""
