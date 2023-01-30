@@ -47,7 +47,7 @@ W = torch.randn((27, 27), generator=g, requires_grad=True) # Keep grads
 
 # %%
 # Gradient optimization
-for epoch in range(1):
+for epoch in range(500):
     
     # Forward pass
     xenc = F.one_hot(xs, num_classes=27).float()    # Cast int to float
