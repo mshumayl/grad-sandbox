@@ -70,6 +70,22 @@ def init_model(hl_size: int = 200, lookup_size: int = 10, context_length: int = 
     return (model_params, model_hyperparams)
 
 
+def init_uniform_model(hl_size: int = 200, lookup_size: int = 10, context_length: int = 3):
+    C = torch.ones((27, lookup_size), requires_grad=True)
+    
+    W1 = torch.ones((lookup_size*context_length, hl_size), requires_grad=True)
+    b1 = torch.ones(hl_size, requires_grad=True)
+    
+    W2 = torch.ones((hl_size, 27), requires_grad=True)
+    b2 = torch.ones(27, requires_grad=True)
+    
+    model_params = [C, W1, b1, W2, b2]
+    model_hyperparams = [hl_size, lookup_size, context_length]
+    
+    return (model_params, model_hyperparams)
+
+
+
 def train_model(data: tuple, model, steps: int = 1, batch_size: int = 32):
     x, y = data
     
@@ -154,10 +170,9 @@ build_dataset(words)
 xtr, ytr, xdev, ydev, xts, yts = split_dataset()
 
 # %%
-model = init_model(
-    hl_size=500,
-    lookup_size=100,
-)
+model = init_model(hl_size=500, lookup_size=100)
+# model = init_uniform_model(hl_size=500, lookup_size=100)
+
 lri = []
 lossi = []
 stepi = []
@@ -166,8 +181,8 @@ stepi = []
 train_model(
     data=(xtr, ytr),
     model=model, 
-    steps=25000,
-    batch_size=128
+    steps=15000,
+    batch_size=64
     )
 # %%
 generate_samples(model)
