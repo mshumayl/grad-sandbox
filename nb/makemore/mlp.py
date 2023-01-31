@@ -56,16 +56,19 @@ def split_dataset():
     
 def init_model(hl_size: int = 200, lookup_size: int = 10, context_length: int = 3):
     g = torch.Generator().manual_seed(SEED)
-    C = torch.randn((27, lookup_size), generator=g, requires_grad=True)
+    C = torch.randn((27, lookup_size), generator=g)
     
-    W1 = torch.randn((lookup_size*context_length, hl_size), generator=g, requires_grad=True)  
-    b1 = torch.randn(hl_size, generator=g, requires_grad=True)        
+    W1 = torch.randn((lookup_size*context_length, hl_size), generator=g) * 0.1 # to avoid tanh from outputting ~1.0
+    b1 = torch.randn(hl_size, generator=g) * 0.01                              # this could cause grad to be ~0, resulting in dead neurons
     
-    W2 = torch.randn((hl_size, 27), generator=g, requires_grad=True)  
-    b2 = torch.randn(27, generator=g, requires_grad=True)
+    W2 = torch.randn((hl_size, 27), generator=g) * 0.01 # so that first step is not too far away
+    b2 = torch.randn(27, generator=g) * 0.0 # zero bias on initialization
     
     model_params = [C, W1, b1, W2, b2]
     model_hyperparams = [hl_size, lookup_size, context_length]
+    
+    for p in model_params:
+        p.requires_grad = True 
     
     return (model_params, model_hyperparams)
 
@@ -148,7 +151,7 @@ def generate_samples(model, num_samples: int = 10, block_size: int = 3):
             
         print(''.join(itos[i] for i in out))
             
-
+@torch.no_grad()
 def validate_model(model, data: tuple):
     
     model_params, model_hyperparams = model
