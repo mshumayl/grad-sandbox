@@ -58,7 +58,7 @@ def init_model(hl_size: int = 200, lookup_size: int = 10, context_length: int = 
     g = torch.Generator().manual_seed(SEED)
     C = torch.randn((27, lookup_size), generator=g)
     
-    W1 = torch.randn((lookup_size*context_length, hl_size), generator=g) * 0.1 # to avoid tanh from outputting ~1.0
+    W1 = torch.randn((lookup_size*context_length, hl_size), generator=g) * (5/3) / ((lookup_size*context_length)**0.5) # kaiming init to avoid tanh from outputting ~1.0
     b1 = torch.randn(hl_size, generator=g) * 0.01                              # this could cause grad to be ~0, resulting in dead neurons
     
     W2 = torch.randn((hl_size, 27), generator=g) * 0.01 # so that first step is not too far away
@@ -202,14 +202,14 @@ validate_model(model, datats)
 """
 Outputs:
 
-farristepha.
-jene.
-sten.
-malah.
-kyn.
-jeffie.
-kahlanita.
-namdira.
-ged.
-amaud.
+farristee.
+azu.
+naksie.
+leilah.
+angele.
+jamiltonavita.
+nablagen.
+carrmonda.
+shel.
+taianna.
 """
