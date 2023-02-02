@@ -10,7 +10,7 @@ with open(r"../../data/names.txt") as f:
     words = f.read().lower().splitlines()
 
 
-SEED = 987654321
+SEED = 12345
 # %%
 chars = sorted(list(set(''.join(words))))
 
@@ -64,7 +64,13 @@ def init_model(hl_size: int = 200, lookup_size: int = 10, context_length: int = 
     W2 = torch.randn((hl_size, 27), generator=g) * 0.01 # so that first step is not too far away
     b2 = torch.randn(27, generator=g) * 0.0 # zero bias on initialization
     
-    model_params = [C, W1, b1, W2, b2]
+    batchnorm_gain = torch.ones((1, hl_size)) # BatchNorm normalizes preactivation values - reduces extremities
+    batchnorm_bias = torch.ones((1, hl_size))
+    
+    model_params = [
+        C, W1, b1, W2, b2,
+        batchnorm_gain, batchnorm_bias
+        ]
     model_hyperparams = [hl_size, lookup_size, context_length]
     
     for p in model_params:
@@ -93,7 +99,7 @@ def train_model(data: tuple, model, steps: int = 1, batch_size: int = 32):
     x, y = data
     
     model_params, model_hyperparams = model
-    C, W1, b1, W2, b2 = model_params
+    C, W1, b1, W2, b2, batchnorm_gain, batchnorm_bias = model_params
     hl_size, lookup_size, context_length = model_hyperparams
     
     for i in range(steps):
@@ -101,8 +107,10 @@ def train_model(data: tuple, model, steps: int = 1, batch_size: int = 32):
         ix = torch.randint(0, x.shape[0], (batch_size,))
         
         # forward pass
-        embs = C[x[ix]] # [32, 3, 2]
-        h = torch.tanh(embs.view(-1, lookup_size*context_length) @ W1 + b1)
+        emb = C[x[ix]]
+        h_preact = emb.view(-1, lookup_size*context_length) @ W1 + b1
+        h_preact = batchnorm_gain * (h_preact - h_preact.mean(0, keepdim=True)) / h_preact.std(0, keepdim=True) + batchnorm_bias
+        h = torch.tanh(h_preact)
         logits = h @ W2 + b2
         loss = F.cross_entropy(logits, y[ix])
         
@@ -128,7 +136,7 @@ def generate_samples(model, num_samples: int = 10, block_size: int = 3):
     g = torch.Generator().manual_seed(SEED)
     
     model_params, _ = model
-    C, W1, b1, W2, b2 = model_params
+    C, W1, b1, W2, b2, batchnorm_gain, batchnorm_bias = model_params
     
     for _ in range(num_samples):
         out = []
@@ -136,7 +144,10 @@ def generate_samples(model, num_samples: int = 10, block_size: int = 3):
         
         while True:
             emb = C[torch.tensor([context])] # [1, block_size, d]
-            h = torch.tanh(emb.view(1, -1) @ W1 + b1)
+            
+            h_preact = emb.view(1, -1) @ W1 + b1
+            h_preact = batchnorm_gain * (h_preact - h_preact.mean(0, keepdim=True)) / h_preact.std(0, keepdim=True) + batchnorm_bias
+            h = torch.tanh(h_preact)
             logits = h @ W2 + b2
             probs = F.softmax(logits, dim=1)
             
@@ -155,13 +166,16 @@ def generate_samples(model, num_samples: int = 10, block_size: int = 3):
 def validate_model(model, data: tuple):
     
     model_params, model_hyperparams = model
-    C, W1, b1, W2, b2 = model_params
+    C, W1, b1, W2, b2, batchnorm_gain, batchnorm_bias = model_params
     hl_size, lookup_size, context_length = model_hyperparams
     
     x, y = data
 
     emb = C[x]
-    h = torch.tanh(emb.view(-1, lookup_size*context_length) @ W1 + b1)
+    
+    h_preact = emb.view(-1, lookup_size*context_length) @ W1 + b1
+    h_preact = batchnorm_gain * (h_preact - h_preact.mean(0, keepdim=True)) / h_preact.std(0, keepdim=True) + batchnorm_bias
+    h = torch.tanh(h_preact)
     logits = h @ W2 + b2
     loss = F.cross_entropy(logits, y)
     
